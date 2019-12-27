@@ -1,6 +1,10 @@
 use crate::lib::map::{Direction, Map, Tile};
-use std::io::{stdin, stdout, Write};
-use termion::{clear, cursor, event::Key, input::TermRead, raw::IntoRawMode};
+use std::{
+    io::{stdout, Read},
+    thread,
+    time::Duration,
+};
+use termion::{async_stdin, clear, cursor, raw::IntoRawMode};
 
 pub struct Game {
     map: Map,
@@ -13,34 +17,34 @@ impl Game {
         }
     }
 
-    fn move_player(&mut self, input: Key) {
+    fn move_player(&mut self, input: &u8) {
         let mut direction = self.map.direction.to_owned();
         let current = self.map.current.to_owned();
         let mut point = current.clone();
         match input {
-            Key::Left => {
-                if direction == Direction::Left && point.x > 0 {
-                    point.x -= 1;
-                }
-                direction = Direction::Left;
-            }
-            Key::Up => {
+            65 => {
                 if direction == Direction::Up && point.y > 0 {
                     point.y -= 1
                 }
                 direction = Direction::Up;
             }
-            Key::Right => {
+            66 => {
+                if direction == Direction::Down {
+                    point.y += 1;
+                }
+                direction = Direction::Down;
+            }
+            67 => {
                 if direction == Direction::Right {
                     point.x += 1;
                 }
                 direction = Direction::Right;
             }
-            Key::Down => {
-                if direction == Direction::Down {
-                    point.y += 1;
+            68 => {
+                if direction == Direction::Left && point.x > 0 {
+                    point.x -= 1;
                 }
-                direction = Direction::Down;
+                direction = Direction::Left;
             }
             _ => {}
         };
@@ -58,27 +62,44 @@ impl Game {
             }
         }
 
-        println!("{}{}", self.map.print_grid(), cursor::Goto(1, 1));
+        self.map.print_grid();
+    }
+
+    fn interact(&mut self) {
+        print!("space!\r\n");
     }
 
     pub fn run(&mut self) {
-        let stdin = stdin();
-        let mut stdout = stdout().into_raw_mode().unwrap();
+        let mut stdin = async_stdin().bytes();
+        let _stdout = stdout().into_raw_mode().unwrap();
 
-        println!("{}{}", self.map.print_grid(), cursor::Goto(1, 1));
+        println!("{}{}{}", clear::All, cursor::Goto(1, 1), cursor::Hide);
 
-        stdout.flush().unwrap();
+        self.map.print_grid();
 
-        for c in stdin.keys() {
-            match c.unwrap() {
-                Key::Char('q') | Key::Esc | Key::Char('c') => break,
-                Key::Char(' ') => println!("space"),
-                c => self.move_player(c),
+        'stdin: loop {
+            if let Some(Ok(val)) = stdin.next() {
+                match val {
+                    // arrow sequence = 27+91+(65-68)
+                    27 => {
+                        if let Some(Ok(val)) = stdin.next() {
+                            if val == 91 {
+                                self.move_player(&stdin.next().unwrap_or(Ok(0)).unwrap_or(0));
+                                continue 'stdin;
+                            }
+                        }
+                    }
+                    // ctrl+c
+                    3 => break 'stdin,
+                    // space
+                    32 => self.interact(),
+                    _ => {}
+                }
             }
 
-            stdout.flush().unwrap();
+            thread::sleep(Duration::from_millis(100));
         }
 
-        println!("{}{}", clear::All, cursor::Goto(1, 1));
+        println!("{}{}{}", clear::All, cursor::Goto(1, 1), cursor::Restore);
     }
 }

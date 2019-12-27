@@ -1,6 +1,6 @@
 use crate::lib::shared::Point;
-use std::collections::HashMap;
-use termion::{clear, cursor};
+use std::collections::{BTreeMap, HashMap};
+use termion::{clear, color, cursor};
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub enum Tile {
@@ -41,6 +41,22 @@ pub struct Map {
     pub direction: Direction,
 }
 
+fn grid_as_tree_map(
+    grid: &HashMap<Point, Tile>,
+    max_x: &usize,
+    max_y: &usize,
+) -> BTreeMap<Point, Tile> {
+    let mut tree_map = BTreeMap::new();
+    for y in 0..=(max_y + 1) {
+        for x in 0..=(max_x + 1) {
+            let point = Point { x, y };
+            let key = grid.get(&point).unwrap_or(&Tile::Unknown);
+            tree_map.insert(point, key.to_owned());
+        }
+    }
+    tree_map
+}
+
 impl Map {
     pub fn test(input: &Vec<Vec<u8>>) -> Map {
         let mut grid = HashMap::new();
@@ -65,47 +81,49 @@ impl Map {
         }
     }
 
-    pub fn print_grid(&mut self) -> String {
+    pub fn print_grid(&mut self) {
         let (max_x, max_y) = self.get_grid();
-        let mut grid = vec![vec![' '; max_x + 1]; max_y + 1];
-        for (point, tile) in self.grid.clone() {
-            let (x, y) = (point.x, point.y);
-
-            if tile == Tile::Unknown {
-                continue;
+        let mut current = 0;
+        let mut string = "".to_string();
+        let mut out = Vec::new();
+        for (point, tile) in grid_as_tree_map(&self.grid, &max_x, &max_y) {
+            if point.y != current {
+                out.push(string.to_owned());
+                string = "".to_string();
+                current = point.y.to_owned();
             }
 
-            if let Some(elem) = grid.get_mut(y) {
-                elem[x] = match tile {
-                    Tile::Current => match self.direction {
-                        Direction::Left => '←',
-                        Direction::Right => '→',
-                        Direction::Up => '↑',
-                        Direction::Down => '↓',
-                    },
-                    Tile::Wall => '█',
-                    Tile::Empty => ' ',
-                    // Tile::Enemy => '░',
-                    _ => ' ',
-                };
-            }
+            string = [
+                string,
+                match tile {
+                    Tile::Current => format!(
+                        "{}{}{}",
+                        color::Fg(color::Green),
+                        match self.direction {
+                            Direction::Left => "←",
+                            Direction::Right => "→",
+                            Direction::Up => "↑",
+                            Direction::Down => "↓",
+                        },
+                        color::Fg(color::Reset)
+                    )
+                    .to_string(),
+                    Tile::Wall => "█".to_string(),
+                    Tile::Empty => " ".to_string(),
+                    // Tile::Enemy => "░",
+                    _ => " ".to_string(),
+                },
+            ]
+            .concat()
         }
 
-        format!(
-            "{}{}",
+        print!(
+            "{}{}{}{}\r\n",
             clear::All,
-            grid.iter()
-                .enumerate()
-                .map(|(y, row)| {
-                    format!(
-                        "{}{}",
-                        cursor::Goto(1, (y as u16) + 1),
-                        row.clone().iter().collect::<String>()
-                    )
-                })
-                .collect::<Vec<String>>()
-                .join("\n")
-        )
+            cursor::Goto(1, 1),
+            cursor::Hide,
+            out.join("\r\n")
+        );
     }
 
     fn get_grid(&self) -> (usize, usize) {
