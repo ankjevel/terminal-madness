@@ -148,15 +148,11 @@ impl Map {
         }
 
         print!(
-            "{}{}{}{}\r\n{}\r\n{}\r\n{}\r\n{}\r\n",
+            "{}{}{}{}\r\n",
             clear::All,
             cursor::Goto(1, 1),
             cursor::Hide,
-            out.join("\r\n"),
-            (245 >> 16),
-            (9 >> 8),
-            (3 >> 4),
-            (0 >> 2),
+            out.join("\r\n")
         );
     }
 

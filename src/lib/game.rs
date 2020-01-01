@@ -10,6 +10,7 @@ use std::{
 };
 use termion::{async_stdin, clear, cursor, raw::IntoRawMode};
 
+#[derive(Clone, Eq, PartialEq, Debug)]
 struct MapMeta {
     grid: HashMap<Point, (u8, (u8, u8))>,
     max: (usize, usize),
@@ -61,7 +62,7 @@ impl Game {
         match input {
             65 => {
                 if direction == Direction::Up && point.y > 0 {
-                    point.y -= 1
+                    point.y -= 1;
                 }
                 direction = Direction::Up;
             }
@@ -90,12 +91,37 @@ impl Game {
             self.map.direction = direction;
         }
 
-        if let Some(tile) = self.map.grid.get_mut(&point) {
-            if tile == &Tile::Empty {
-                *tile = Tile::Current;
+        if point == current {
+            self.map.print_grid();
+            return;
+        }
 
-                *self.map.grid.get_mut(&current).unwrap() = Tile::Empty;
-                self.map.current = point.to_owned();
+        if let Some(tile) = self.map.grid.get_mut(&point) {
+            match tile {
+                Tile::Empty => {
+                    *tile = Tile::Current;
+
+                    *self.map.grid.get_mut(&current).unwrap() = Tile::Empty;
+                    self.map.current = point.to_owned();
+                }
+                Tile::Warp => {
+                    let mut map = None;
+
+                    if let Some(meta) = self.map.meta.get(&point) {
+                        if let Some(new_map_meta) = self.maps.get(&meta) {
+                            map = Some(Map::parse_map(
+                                &new_map_meta.grid,
+                                &new_map_meta.max,
+                                &new_map_meta.player,
+                            ))
+                        }
+                    }
+
+                    if map.is_some() {
+                        self.map = map.unwrap();
+                    }
+                }
+                _ => {}
             }
         }
 
