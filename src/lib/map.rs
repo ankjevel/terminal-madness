@@ -58,26 +58,42 @@ fn grid_as_tree_map(
 }
 
 impl Map {
-    pub fn test(input: &Vec<Vec<u8>>) -> Map {
+    pub fn parse_map(
+        input: &HashMap<Point, u8>,
+        map: &(usize, usize),
+        player: &(usize, usize, u8),
+    ) -> Map {
         let mut grid = HashMap::new();
-        let mut current = Point { x: 0, y: 0 };
-        for (y, row) in input.iter().enumerate() {
-            for (x, tile) in row.iter().enumerate() {
+        let current = Point {
+            x: player.0,
+            y: player.1,
+        };
+
+        for y in 0..map.1 {
+            for x in 0..map.0 {
                 let point = Point { x, y };
-                let tile = Tile::from_u8(tile);
-
-                if tile == Tile::Current {
-                    current = point.to_owned();
-                }
-
+                let tile = Tile::Empty;
                 grid.insert(point, tile);
             }
         }
 
+        for (point, tile) in input {
+            if let Some(grid) = grid.get_mut(&point) {
+                *grid = Tile::from_u8(tile);
+            }
+        }
+
+        grid.insert(current.to_owned(), Tile::Current);
+
         Map {
             grid,
             current,
-            direction: Direction::Right,
+            direction: match player.2 {
+                0 => Direction::Up,
+                1 => Direction::Down,
+                2 => Direction::Right,
+                3 | _ => Direction::Left,
+            },
         }
     }
 

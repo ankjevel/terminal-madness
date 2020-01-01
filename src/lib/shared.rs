@@ -1,4 +1,14 @@
-use std::cmp::Ordering::{self, Equal, Greater, Less};
+use std::{
+    cmp::Ordering::{self, Equal, Greater, Less},
+    collections::HashMap,
+};
+
+pub type MapStruct = (
+    (u8, u8),
+    HashMap<Point, u8>,
+    (usize, usize),
+    (usize, usize, u8),
+);
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct Point {
