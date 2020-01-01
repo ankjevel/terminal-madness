@@ -19,6 +19,8 @@ struct MapMeta {
 
 pub struct Game {
     map: Map,
+    current_map: (u8, u8),
+    entries: HashMap<(u8, u8), Point>,
     maps: HashMap<(u8, u8), MapMeta>,
 }
 
@@ -42,15 +44,18 @@ impl Game {
             player: (0, 0, 0),
         };
 
-        let map = match maps.get(&(0, 0)) {
+        let current_map = (0, 0);
+
+        let map = match maps.get(&current_map) {
             Some(meta) => meta,
             None => &no_match,
-        }
-        .to_owned();
+        };
 
         Game {
+            current_map,
             map: Map::parse_map(&map.grid, &map.max, &map.player),
             maps,
+            entries: HashMap::new(),
         }
     }
 
@@ -104,20 +109,21 @@ impl Game {
                     self.map.current = point.to_owned();
                 }
                 Tile::Warp => {
-                    let mut map = None;
-
                     if let Some(meta) = self.map.meta.get(&point) {
                         if let Some(new_map_meta) = self.maps.get(&meta) {
-                            map = Some(Map::parse_map(
+                            let player = match self.entries.get(&meta) {
+                                Some(point) => (point.x, point.y, self.map.direction.to_u8()),
+                                None => new_map_meta.player,
+                            };
+                            let map = Some(Map::parse_map(
                                 &new_map_meta.grid,
                                 &new_map_meta.max,
-                                &new_map_meta.player,
-                            ))
+                                &player,
+                            ));
+                            self.entries.insert(self.current_map, self.map.current);
+                            self.current_map = meta.to_owned();
+                            self.map = map.unwrap();
                         }
-                    }
-
-                    if map.is_some() {
-                        self.map = map.unwrap();
                     }
                 }
                 _ => {}

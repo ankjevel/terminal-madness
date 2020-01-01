@@ -36,6 +36,17 @@ pub enum Direction {
     Left,
 }
 
+impl Direction {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            Direction::Up => 0,
+            Direction::Down => 1,
+            Direction::Right => 2,
+            Direction::Left => 3,
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct Map {
     pub grid: HashMap<Point, Tile>,
