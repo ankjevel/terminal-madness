@@ -11,7 +11,7 @@ use std::{
 use termion::{async_stdin, clear, cursor, raw::IntoRawMode};
 
 struct MapMeta {
-    grid: HashMap<Point, u8>,
+    grid: HashMap<Point, (u8, (u8, u8))>,
     max: (usize, usize),
     player: (usize, usize, u8),
 }

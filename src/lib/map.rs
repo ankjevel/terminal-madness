@@ -4,10 +4,11 @@ use termion::{clear, color, cursor};
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub enum Tile {
-    Current,
-    Unknown,
     Wall,
     Empty,
+    Current,
+    Warp,
+    Unknown,
 }
 
 impl Tile {
@@ -16,6 +17,7 @@ impl Tile {
             "0" => Tile::Wall,
             "1" => Tile::Empty,
             "2" => Tile::Current,
+            "3" => Tile::Warp,
             _ => Tile::Unknown,
         }
     }
@@ -39,6 +41,7 @@ pub struct Map {
     pub grid: HashMap<Point, Tile>,
     pub current: Point,
     pub direction: Direction,
+    pub meta: HashMap<Point, (u8, u8)>,
 }
 
 fn grid_as_tree_map(
@@ -59,7 +62,7 @@ fn grid_as_tree_map(
 
 impl Map {
     pub fn parse_map(
-        input: &HashMap<Point, u8>,
+        input: &HashMap<Point, (u8, (u8, u8))>,
         map: &(usize, usize),
         player: &(usize, usize, u8),
     ) -> Map {
@@ -77,9 +80,13 @@ impl Map {
             }
         }
 
-        for (point, tile) in input {
+        let mut meta = HashMap::new();
+
+        for (point, (tile, tile_meta)) in input {
             if let Some(grid) = grid.get_mut(&point) {
                 *grid = Tile::from_u8(tile);
+
+                meta.insert(point.to_owned(), tile_meta.to_owned());
             }
         }
 
@@ -88,6 +95,7 @@ impl Map {
         Map {
             grid,
             current,
+            meta,
             direction: match player.2 {
                 0 => Direction::Up,
                 1 => Direction::Down,
@@ -126,7 +134,13 @@ impl Map {
                     .to_string(),
                     Tile::Wall => "█".to_string(),
                     Tile::Empty => " ".to_string(),
-                    // Tile::Enemy => "░",
+                    Tile::Warp => format!(
+                        "{}{}{}",
+                        color::Fg(color::Yellow),
+                        "░",
+                        color::Fg(color::Reset)
+                    )
+                    .to_string(),
                     _ => " ".to_string(),
                 },
             ]
@@ -134,11 +148,15 @@ impl Map {
         }
 
         print!(
-            "{}{}{}{}\r\n",
+            "{}{}{}{}\r\n{}\r\n{}\r\n{}\r\n{}\r\n",
             clear::All,
             cursor::Goto(1, 1),
             cursor::Hide,
-            out.join("\r\n")
+            out.join("\r\n"),
+            (245 >> 16),
+            (9 >> 8),
+            (3 >> 4),
+            (0 >> 2),
         );
     }
 

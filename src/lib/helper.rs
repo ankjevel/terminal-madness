@@ -41,19 +41,23 @@ pub fn parse_input(str: &str) -> Vec<MapStruct> {
             let mut grid = HashMap::new();
             for chars in input.next().unwrap_or(&"".to_string()).split("|") {
                 let mut iter = chars.split(",");
-                let (x, y, tile) = (
+                let (x, y, tile, meta) = (
                     iter.next().unwrap_or("0").parse::<usize>().unwrap_or(0),
                     iter.next().unwrap_or("0").parse::<usize>().unwrap_or(0),
                     iter.next().unwrap_or("0").parse::<u8>().unwrap_or(0),
+                    (
+                        iter.next().unwrap_or("0").parse::<u8>().unwrap_or(0),
+                        iter.next().unwrap_or("0").parse::<u8>().unwrap_or(0),
+                    ),
                 );
-                grid.insert(Point { x, y }, tile.to_owned());
+                grid.insert(Point { x, y }, (tile, meta));
             }
 
             for y in 0..max_y {
                 for x in 0..max_x {
                     let point = Point { x, y };
                     if y == 0 || y == max_y - 1 || x == 0 || x == max_x - 1 {
-                        grid.insert(point, 0);
+                        grid.insert(point, (0, (0, 0)));
                     }
                 }
             }

@@ -5,7 +5,7 @@ use std::{
 
 pub type MapStruct = (
     (u8, u8),
-    HashMap<Point, u8>,
+    HashMap<Point, (u8, (u8, u8))>,
     (usize, usize),
     (usize, usize, u8),
 );
