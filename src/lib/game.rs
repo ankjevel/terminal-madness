@@ -17,11 +17,14 @@ struct MapMeta {
     player: (usize, usize, u8),
 }
 
+#[allow(dead_code)]
 pub struct Game {
-    map: Map,
     current_map: (u8, u8),
+    dialogue: Option<u8>,
     entries: HashMap<(u8, u8), Point>,
+    map: Map,
     maps: HashMap<(u8, u8), MapMeta>,
+    splash: Option<u8>,
 }
 
 impl Game {
@@ -53,9 +56,11 @@ impl Game {
 
         Game {
             current_map,
+            dialogue: None,
+            entries: HashMap::new(),
             map: Map::parse_map(&map.grid, &map.max, &map.player),
             maps,
-            entries: HashMap::new(),
+            splash: None,
         }
     }
 
@@ -144,7 +149,7 @@ impl Game {
         };
 
         if let Some(tile) = self.map.grid.get(&looking_at) {
-            print!("you are looking at \"{:?}\"\r\n", tile);
+            print!("you stand next to \"{:?}\"\r\n", tile);
         }
     }
 
@@ -170,7 +175,7 @@ impl Game {
                     3 => break 'stdin,
                     // space
                     32 => self.interact(),
-                    _ => {}
+                    _ => print!("{}\r\n", val),
                 }
             }
 
