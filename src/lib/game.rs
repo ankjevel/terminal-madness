@@ -17,7 +17,6 @@ struct MapMeta {
     player: (usize, usize, u8),
 }
 
-#[allow(dead_code)]
 pub struct Game {
     map: Map,
     maps: HashMap<(u8, u8), MapMeta>,
