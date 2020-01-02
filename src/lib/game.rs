@@ -6,7 +6,7 @@ use crate::lib::{
 use std::{
     collections::HashMap,
     ops::RangeInclusive,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -28,7 +28,7 @@ pub struct Game {
     pub map: Map,
     maps: HashMap<(u8, u8), MapMeta>,
     splash: Option<u8>,
-    pub pathfinding: Arc<Mutex<HashMap<u8, Vec<Point>>>>,
+    pub pathfinding: Arc<RwLock<HashMap<u8, Vec<Point>>>>,
 }
 
 impl Game {
@@ -60,15 +60,19 @@ impl Game {
             None => &no_match,
         };
 
-        Game {
+        let mut game = Game {
             current_map,
             dialogue: None,
             entries: HashMap::new(),
             map: Map::parse_map(&map.grid, &map.max, &map.player, &map.props),
             maps,
             splash: None,
-            pathfinding: Arc::new(Mutex::new(HashMap::new())),
-        }
+            pathfinding: Arc::new(RwLock::new(HashMap::new())),
+        };
+
+        game.new_path_for_npc();
+
+        game
     }
 
     pub fn new_path_for_npc(&mut self) {
@@ -79,11 +83,12 @@ impl Game {
             }
         };
 
-        let mut pathfinding = self.pathfinding.lock().unwrap();
+        let mut pathfinding = self.pathfinding.write().unwrap();
         for npc in &self.map.npc {
             if let Some(val) = pathfinding.get(npc.0) {
-                print!("val: {:?}\r\n", val);
-                continue;
+                if !val.is_empty() {
+                    continue;
+                }
             }
 
             if let Some(meta) = self.map.props.get(npc.0) {
@@ -97,8 +102,6 @@ impl Game {
                 let path = path.unwrap();
 
                 pathfinding.insert(*npc.0, path.to_owned());
-
-                print!("non yet for {:?}\r\n{:?}\r\n{:?}\r\n", npc, point, path);
             }
         }
     }
@@ -165,16 +168,19 @@ impl Game {
                                 &player,
                                 &new_map_meta.props,
                             ));
+                            let mut pathfinding = self.pathfinding.write().unwrap();
+                            pathfinding.clear();
+                            drop(pathfinding);
                             self.entries.insert(self.current_map, self.map.current);
                             self.current_map = meta.to_owned();
                             self.map = map.unwrap();
+                            self.new_path_for_npc();
                         }
                     }
                 }
                 _ => {}
             }
         }
-
         self.map.print_grid();
     }
 
@@ -194,6 +200,44 @@ impl Game {
     }
 
     pub fn move_actor(&mut self, id: &u8, point: &Point) {
-        print!("{}={:?}\r\n", id, point);
+        let npc = self.map.npc.get_mut(id).unwrap();
+        let is_not_occupied = self.map.grid.get(point).unwrap() != &Tile::Current;
+
+        if is_not_occupied {
+            let tile = self.map.grid.get_mut(npc).unwrap();
+            *tile = Tile::Empty;
+            let tile = self.map.grid.get_mut(point).unwrap();
+            *tile = Tile::NPC;
+            *npc = point.to_owned();
+            self.map.print_grid();
+
+            let mut calculate_new = false;
+
+            if let Ok(pathfinding) = self.pathfinding.read() {
+                if let Some(npc) = pathfinding.get(id) {
+                    if npc.len() == 0 {
+                        calculate_new = true;
+                    }
+                }
+            }
+
+            if calculate_new {
+                self.new_path_for_npc();
+            }
+
+            return;
+        }
+
+        drop(npc);
+        drop(is_not_occupied);
+
+        if let Ok(guard) = self.pathfinding.write() {
+            let mut pathfinding = guard;
+            if let Some(npc) = pathfinding.get_mut(id) {
+                npc.clear()
+            }
+        }
+
+        self.new_path_for_npc();
     }
 }

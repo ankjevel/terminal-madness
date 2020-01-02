@@ -24,18 +24,31 @@ fn main() {
     game.lock().unwrap().map.print_grid();
 
     let pathfinding = game.lock().unwrap().pathfinding.clone();
-
     let in_thread = game.clone();
 
     thread::spawn(move || loop {
-        for path in pathfinding.lock().unwrap().iter_mut() {
-            let point = path.1.pop();
-            if point.is_none() {
-                continue;
+        let mut movement = Vec::new();
+        if let Ok(guard) = pathfinding.write() {
+            let mut guard = guard;
+            for path in guard.iter_mut() {
+                if path.1.is_empty() {
+                    continue;
+                }
+
+                let point = path.1.pop();
+
+                if point.is_none() {
+                    continue;
+                }
+
+                let point = point.unwrap();
+                movement.push((path.0.to_owned(), point.to_owned()));
             }
-            let point = point.unwrap();
+        };
+
+        for (id, point) in movement {
             let mut game = in_thread.lock().unwrap();
-            game.move_actor(path.0, &point);
+            game.move_actor(&id, &point);
         }
 
         thread::sleep(Duration::from_millis(2500));
@@ -48,9 +61,11 @@ fn main() {
                 27 => {
                     if let Some(Ok(val)) = stdin.next() {
                         if val == 91 {
-                            let mut this = game.lock().unwrap();
-                            this.move_player(&stdin.next().unwrap_or(Ok(0)).unwrap_or(0));
-                            continue 'stdin;
+                            if let Ok(guard) = game.try_lock() {
+                                let mut this = guard;
+                                this.move_player(&stdin.next().unwrap_or(Ok(0)).unwrap_or(0));
+                                continue 'stdin;
+                            }
                         }
                     }
                 }
@@ -60,19 +75,27 @@ fn main() {
                 13 => print!("enter\r\n"),
                 // space
                 32 => {
-                    let mut this = game.lock().unwrap();
-                    this.interact()
+                    if let Ok(guard) = game.try_lock() {
+                        let mut this = guard;
+                        this.interact()
+                    }
                 }
                 // n
                 110 => {
-                    let mut this = game.lock().unwrap();
-                    this.new_path_for_npc()
+                    if let Ok(guard) = game.try_lock() {
+                        let mut this = guard;
+                        this.new_path_for_npc()
+                    }
                 }
                 _ => print!("{}\r\n", val),
             }
         }
 
         thread::sleep(Duration::from_millis(100));
+        if let Ok(guard) = game.try_lock() {
+            let mut this = guard;
+            this.map.print_grid();
+        }
     }
 
     println!("{}{}{}", clear::All, cursor::Show, cursor::Goto(1, 1));

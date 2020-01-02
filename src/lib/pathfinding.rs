@@ -146,7 +146,7 @@ pub fn find_leafs(map: &Map, current: &Vec<Point>) -> Vec<Point> {
 pub fn find_path(map: &Map, start: Point, goal: Point) -> Option<Vec<Point>> {
     let can_move = |point: &Point| -> bool {
         match map.get(&point) {
-            Some(tile) => tile != &Tile::Wall,
+            Some(tile) => tile == &Tile::Empty,
             None => false,
         }
     };
