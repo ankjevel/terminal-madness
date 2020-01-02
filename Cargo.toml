@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 termion = "1.5.4"
+lazy_static = "1.4.0"
 
 [profile.release]
 lto = true

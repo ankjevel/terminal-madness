@@ -1,6 +1,6 @@
 use crate::lib::{
     map::{Direction, Map, Tile},
-    shared::{MapStruct, Point},
+    shared::{ParsedMap, Point},
 };
 use std::{
     collections::HashMap,
@@ -28,15 +28,15 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(input: Vec<MapStruct>) -> Game {
+    pub fn new(input: Vec<ParsedMap>) -> Game {
         let mut maps = HashMap::new();
-        for (area_and_part, grid, max, player) in input.into_iter() {
+        for parsed in input.into_iter() {
             maps.insert(
-                area_and_part.to_owned(),
+                (parsed.area, parsed.part),
                 MapMeta {
-                    max: max.to_owned(),
-                    grid: grid.to_owned(),
-                    player: player.to_owned(),
+                    max: parsed.max,
+                    grid: parsed.grid,
+                    player: parsed.player,
                 },
             );
         }
@@ -173,6 +173,7 @@ impl Game {
                     }
                     // ctrl+c
                     3 => break 'stdin,
+                    13 => print!("enter\r\n"),
                     // space
                     32 => self.interact(),
                     _ => print!("{}\r\n", val),

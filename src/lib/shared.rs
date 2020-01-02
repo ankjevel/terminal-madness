@@ -1,14 +1,17 @@
 use std::{
     cmp::Ordering::{self, Equal, Greater, Less},
     collections::HashMap,
+    ops::RangeInclusive,
 };
 
-pub type MapStruct = (
-    (u8, u8),
-    HashMap<Point, (u8, (u8, u8))>,
-    (usize, usize),
-    (usize, usize, u8),
-);
+pub struct ParsedMap {
+    pub area: u8,
+    pub part: u8,
+    pub grid: HashMap<Point, (u8, (u8, u8))>,
+    pub max: (usize, usize),
+    pub player: (usize, usize, u8),
+    pub props: HashMap<u8, (RangeInclusive<u8>, RangeInclusive<u8>)>,
+}
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct Point {

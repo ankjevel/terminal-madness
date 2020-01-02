@@ -1,6 +1,17 @@
-use crate::lib::shared::Point;
-use std::collections::{BTreeMap, HashMap};
+use crate::lib::{helper::with_color, shared::Point};
+use std::{
+    collections::{BTreeMap, HashMap},
+    string::String,
+};
 use termion::{clear, color, cursor};
+
+lazy_static! {
+    static ref TILE_WARP: String = with_color("░", color::Yellow);
+    static ref TILE_DIRECTION_LEFT: String = with_color("←", color::Green);
+    static ref TILE_DIRECTION_RIGHT: String = with_color("→", color::Green);
+    static ref TILE_DIRECTION_UP: String = with_color("↑", color::Green);
+    static ref TILE_DIRECTION_DOWN: String = with_color("↓", color::Green);
+}
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub enum Tile {
@@ -8,6 +19,7 @@ pub enum Tile {
     Empty,
     Current,
     Warp,
+    NPC,
     Unknown,
 }
 
@@ -18,6 +30,7 @@ impl Tile {
             "1" => Tile::Empty,
             "2" => Tile::Current,
             "3" => Tile::Warp,
+            "4" => Tile::NPC,
             _ => Tile::Unknown,
         }
     }
@@ -69,6 +82,22 @@ fn grid_as_tree_map(
         }
     }
     tree_map
+}
+
+fn print_tile_current(direction: &Direction) -> String {
+    match direction {
+        Direction::Left => TILE_DIRECTION_LEFT.to_string(),
+        Direction::Right => TILE_DIRECTION_RIGHT.to_string(),
+        Direction::Up => TILE_DIRECTION_UP.to_string(),
+        Direction::Down => TILE_DIRECTION_DOWN.to_string(),
+    }
+}
+
+fn join<'a>(a: String, b: String) -> String {
+    let (a, b) = (a.to_owned(), b.to_owned());
+    let c = [a, b].concat();
+
+    c.to_string()
 }
 
 impl Map {
@@ -128,34 +157,17 @@ impl Map {
                 current = point.y.to_owned();
             }
 
-            string = [
+            string = join(
                 string,
                 match tile {
-                    Tile::Current => format!(
-                        "{}{}{}",
-                        color::Fg(color::Green),
-                        match self.direction {
-                            Direction::Left => "←",
-                            Direction::Right => "→",
-                            Direction::Up => "↑",
-                            Direction::Down => "↓",
-                        },
-                        color::Fg(color::Reset)
-                    )
-                    .to_string(),
+                    Tile::Current => print_tile_current(&self.direction),
                     Tile::Wall => "█".to_string(),
                     Tile::Empty => " ".to_string(),
-                    Tile::Warp => format!(
-                        "{}{}{}",
-                        color::Fg(color::Yellow),
-                        "░",
-                        color::Fg(color::Reset)
-                    )
-                    .to_string(),
+                    Tile::Warp => TILE_WARP.to_string(),
+                    Tile::NPC => "X".to_string(),
                     _ => " ".to_string(),
                 },
-            ]
-            .concat()
+            )
         }
 
         print!(

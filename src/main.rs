@@ -1,8 +1,11 @@
+#[macro_use]
+extern crate lazy_static;
+
 mod lib;
 
-use lib::{game::Game, helper::parse_input};
+use lib::{game::Game, helper::parse_maps};
 
 fn main() {
-    let output = parse_input(&include_str!("../lib/maps"));
-    Game::new(output).run();
+    let maps = parse_maps(&include_str!("../lib/maps"));
+    Game::new(maps).run();
 }
