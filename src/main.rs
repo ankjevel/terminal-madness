@@ -92,10 +92,6 @@ fn main() {
         }
 
         thread::sleep(Duration::from_millis(100));
-        if let Ok(guard) = game.try_lock() {
-            let mut this = guard;
-            this.map.print_grid();
-        }
     }
 
     println!("{}{}{}", clear::All, cursor::Show, cursor::Goto(1, 1));
