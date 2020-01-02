@@ -1,30 +1,34 @@
 use crate::lib::{
-    map::{Direction, Map, Tile},
-    shared::{ParsedMap, Point},
+    map::Map,
+    pathfinding::find_path,
+    shared::{rand_range, Direction, ParsedMap, Point, Tile},
 };
 use std::{
     collections::HashMap,
-    io::{stdout, Read},
-    thread,
-    time::Duration,
+    ops::RangeInclusive,
+    sync::{Arc, Mutex},
 };
-use termion::{async_stdin, clear, cursor, raw::IntoRawMode};
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 struct MapMeta {
     grid: HashMap<Point, (u8, (u8, u8))>,
     max: (usize, usize),
     player: (usize, usize, u8),
+    props: HashMap<u8, (RangeInclusive<u8>, RangeInclusive<u8>)>,
 }
 
+type Range = (RangeInclusive<u8>, RangeInclusive<u8>);
+
 #[allow(dead_code)]
+#[derive(Clone, Debug)]
 pub struct Game {
     current_map: (u8, u8),
     dialogue: Option<u8>,
     entries: HashMap<(u8, u8), Point>,
-    map: Map,
+    pub map: Map,
     maps: HashMap<(u8, u8), MapMeta>,
     splash: Option<u8>,
+    pub pathfinding: Arc<Mutex<HashMap<u8, Vec<Point>>>>,
 }
 
 impl Game {
@@ -37,6 +41,7 @@ impl Game {
                     max: parsed.max,
                     grid: parsed.grid,
                     player: parsed.player,
+                    props: parsed.props,
                 },
             );
         }
@@ -45,6 +50,7 @@ impl Game {
             max: (0, 0),
             grid: HashMap::new(),
             player: (0, 0, 0),
+            props: HashMap::new(),
         };
 
         let current_map = (0, 0);
@@ -58,13 +64,46 @@ impl Game {
             current_map,
             dialogue: None,
             entries: HashMap::new(),
-            map: Map::parse_map(&map.grid, &map.max, &map.player),
+            map: Map::parse_map(&map.grid, &map.max, &map.player, &map.props),
             maps,
             splash: None,
+            pathfinding: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    fn move_player(&mut self, input: &u8) {
+    pub fn new_path_for_npc(&mut self) {
+        let gen_point = |range: &Range| -> Point {
+            Point {
+                x: rand_range(&range.0) as usize,
+                y: rand_range(&range.1) as usize,
+            }
+        };
+
+        let mut pathfinding = self.pathfinding.lock().unwrap();
+        for npc in &self.map.npc {
+            if let Some(val) = pathfinding.get(npc.0) {
+                print!("val: {:?}\r\n", val);
+                continue;
+            }
+
+            if let Some(meta) = self.map.props.get(npc.0) {
+                let point = gen_point(&meta);
+                let path = find_path(&self.map.grid, npc.1.to_owned(), point.to_owned());
+
+                if path.is_none() {
+                    continue;
+                }
+
+                let path = path.unwrap();
+
+                pathfinding.insert(*npc.0, path.to_owned());
+
+                print!("non yet for {:?}\r\n{:?}\r\n{:?}\r\n", npc, point, path);
+            }
+        }
+    }
+
+    pub fn move_player(&mut self, input: &u8) {
         let mut direction = self.map.direction.to_owned();
         let current = self.map.current.to_owned();
         let mut point = current.clone();
@@ -124,6 +163,7 @@ impl Game {
                                 &new_map_meta.grid,
                                 &new_map_meta.max,
                                 &player,
+                                &new_map_meta.props,
                             ));
                             self.entries.insert(self.current_map, self.map.current);
                             self.current_map = meta.to_owned();
@@ -138,7 +178,7 @@ impl Game {
         self.map.print_grid();
     }
 
-    fn interact(&mut self) {
+    pub fn interact(&mut self) {
         let mut looking_at = self.map.current.to_owned();
 
         match self.map.direction {
@@ -153,36 +193,7 @@ impl Game {
         }
     }
 
-    pub fn run(&mut self) {
-        let mut stdin = async_stdin().bytes();
-        let _stdout = stdout().into_raw_mode().unwrap();
-
-        self.map.print_grid();
-
-        'stdin: loop {
-            if let Some(Ok(val)) = stdin.next() {
-                match val {
-                    // arrow sequence = 27+91+(65-68)
-                    27 => {
-                        if let Some(Ok(val)) = stdin.next() {
-                            if val == 91 {
-                                self.move_player(&stdin.next().unwrap_or(Ok(0)).unwrap_or(0));
-                                continue 'stdin;
-                            }
-                        }
-                    }
-                    // ctrl+c
-                    3 => break 'stdin,
-                    13 => print!("enter\r\n"),
-                    // space
-                    32 => self.interact(),
-                    _ => print!("{}\r\n", val),
-                }
-            }
-
-            thread::sleep(Duration::from_millis(100));
-        }
-
-        println!("{}{}{}", clear::All, cursor::Show, cursor::Goto(1, 1));
+    pub fn move_actor(&mut self, id: &u8, point: &Point) {
+        print!("{}={:?}\r\n", id, point);
     }
 }

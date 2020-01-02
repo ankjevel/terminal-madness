@@ -1,3 +1,4 @@
+use rand::Rng;
 use std::{
     cmp::Ordering::{self, Equal, Greater, Less},
     collections::HashMap,
@@ -48,5 +49,56 @@ impl Ord for Point {
 impl PartialOrd for Point {
     fn partial_cmp(&self, other: &Point) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+pub fn rand_range(input: &RangeInclusive<u8>) -> u8 {
+    rand::thread_rng().gen_range(input.start(), input.end())
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+pub enum Tile {
+    Wall,
+    Empty,
+    Current,
+    Warp,
+    NPC,
+    Unknown,
+}
+
+impl Tile {
+    pub fn from_str(input: &str) -> Tile {
+        match input {
+            "0" => Tile::Wall,
+            "1" => Tile::Empty,
+            "2" => Tile::Current,
+            "3" => Tile::Warp,
+            "4" => Tile::NPC,
+            _ => Tile::Unknown,
+        }
+    }
+
+    pub fn from_u8(input: &u8) -> Tile {
+        Tile::from_str(&input.to_string())
+    }
+}
+
+#[derive(Eq, PartialEq, Debug, Clone)]
+#[allow(dead_code)]
+pub enum Direction {
+    Up,
+    Down,
+    Right,
+    Left,
+}
+
+impl Direction {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            Direction::Up => 0,
+            Direction::Down => 1,
+            Direction::Right => 2,
+            Direction::Left => 3,
+        }
     }
 }

@@ -1,6 +1,10 @@
-use crate::lib::{helper::with_color, shared::Point};
+use crate::lib::{
+    helper::with_color,
+    shared::{Direction, Point, Tile},
+};
 use std::{
     collections::{BTreeMap, HashMap},
+    ops::RangeInclusive,
     string::String,
 };
 use termion::{clear, color, cursor};
@@ -11,61 +15,6 @@ lazy_static! {
     static ref TILE_DIRECTION_RIGHT: String = with_color("→", color::Green);
     static ref TILE_DIRECTION_UP: String = with_color("↑", color::Green);
     static ref TILE_DIRECTION_DOWN: String = with_color("↓", color::Green);
-}
-
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
-pub enum Tile {
-    Wall,
-    Empty,
-    Current,
-    Warp,
-    NPC,
-    Unknown,
-}
-
-impl Tile {
-    pub fn from_str(input: &str) -> Tile {
-        match input {
-            "0" => Tile::Wall,
-            "1" => Tile::Empty,
-            "2" => Tile::Current,
-            "3" => Tile::Warp,
-            "4" => Tile::NPC,
-            _ => Tile::Unknown,
-        }
-    }
-
-    pub fn from_u8(input: &u8) -> Tile {
-        Tile::from_str(&input.to_string())
-    }
-}
-
-#[derive(Eq, PartialEq, Debug, Clone)]
-#[allow(dead_code)]
-pub enum Direction {
-    Up,
-    Down,
-    Right,
-    Left,
-}
-
-impl Direction {
-    pub fn to_u8(&self) -> u8 {
-        match self {
-            Direction::Up => 0,
-            Direction::Down => 1,
-            Direction::Right => 2,
-            Direction::Left => 3,
-        }
-    }
-}
-
-#[derive(Eq, PartialEq, Debug, Clone)]
-pub struct Map {
-    pub grid: HashMap<Point, Tile>,
-    pub current: Point,
-    pub direction: Direction,
-    pub meta: HashMap<Point, (u8, u8)>,
 }
 
 fn grid_as_tree_map(
@@ -100,11 +49,22 @@ fn join<'a>(a: String, b: String) -> String {
     c.to_string()
 }
 
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub struct Map {
+    pub grid: HashMap<Point, Tile>,
+    pub current: Point,
+    pub npc: HashMap<u8, Point>,
+    pub direction: Direction,
+    pub meta: HashMap<Point, (u8, u8)>,
+    pub props: HashMap<u8, (RangeInclusive<u8>, RangeInclusive<u8>)>,
+}
+
 impl Map {
     pub fn parse_map(
         input: &HashMap<Point, (u8, (u8, u8))>,
         map: &(usize, usize),
         player: &(usize, usize, u8),
+        props: &HashMap<u8, (RangeInclusive<u8>, RangeInclusive<u8>)>,
     ) -> Map {
         let mut grid = HashMap::new();
         let current = Point {
@@ -121,10 +81,16 @@ impl Map {
         }
 
         let mut meta = HashMap::new();
+        let mut npc = HashMap::new();
 
         for (point, (tile, tile_meta)) in input {
             if let Some(grid) = grid.get_mut(&point) {
-                *grid = Tile::from_u8(tile);
+                let parsed_tile = Tile::from_u8(tile);
+                *grid = parsed_tile.to_owned();
+
+                if parsed_tile == Tile::NPC {
+                    npc.insert(tile_meta.0.to_owned(), point.to_owned());
+                }
 
                 meta.insert(point.to_owned(), tile_meta.to_owned());
             }
@@ -136,6 +102,8 @@ impl Map {
             grid,
             current,
             meta,
+            npc,
+            props: props.to_owned(),
             direction: match player.2 {
                 0 => Direction::Up,
                 1 => Direction::Down,
