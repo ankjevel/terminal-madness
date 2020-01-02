@@ -84,7 +84,6 @@ impl Tile {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
-#[allow(dead_code)]
 pub enum Direction {
     Up,
     Down,
@@ -99,6 +98,15 @@ impl Direction {
             Direction::Down => 1,
             Direction::Right => 2,
             Direction::Left => 3,
+        }
+    }
+
+    pub fn from_u8(input: u8) -> Direction {
+        match input {
+            0 => Direction::Up,
+            1 => Direction::Down,
+            2 => Direction::Right,
+            3 | _ => Direction::Left,
         }
     }
 }

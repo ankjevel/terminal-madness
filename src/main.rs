@@ -1,7 +1,5 @@
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate float_cmp;
 extern crate rand;
 
 mod lib;
@@ -51,7 +49,7 @@ fn main() {
             game.move_actor(&id, &point);
         }
 
-        thread::sleep(Duration::from_millis(2500));
+        thread::sleep(Duration::from_millis(1200));
     });
 
     'stdin: loop {
@@ -78,13 +76,6 @@ fn main() {
                     if let Ok(guard) = game.try_lock() {
                         let mut this = guard;
                         this.interact()
-                    }
-                }
-                // n
-                110 => {
-                    if let Ok(guard) = game.try_lock() {
-                        let mut this = guard;
-                        this.new_path_for_npc()
                     }
                 }
                 _ => print!("{}\r\n", val),

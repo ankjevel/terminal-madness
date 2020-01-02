@@ -75,14 +75,20 @@ impl Game {
         game
     }
 
-    pub fn new_path_for_npc(&mut self) {
-        let gen_point = |range: &Range| -> Point {
-            Point {
-                x: rand_range(&range.0) as usize,
-                y: rand_range(&range.1) as usize,
-            }
+    fn gen_point(&self, range: &Range, iteration: usize) -> Point {
+        let point = Point {
+            x: rand_range(&range.0) as usize,
+            y: rand_range(&range.1) as usize,
         };
 
+        if self.map.grid.get(&point) == Some(&Tile::Empty) || iteration > 10 {
+            return point;
+        }
+
+        self.gen_point(range, iteration + 1)
+    }
+
+    pub fn new_path_for_npc(&mut self) {
         let mut pathfinding = self.pathfinding.write().unwrap();
         for npc in &self.map.npc {
             if let Some(val) = pathfinding.get(npc.0) {
@@ -92,7 +98,7 @@ impl Game {
             }
 
             if let Some(meta) = self.map.props.get(npc.0) {
-                let point = gen_point(&meta);
+                let point = self.gen_point(&meta, 0);
                 let path = find_path(&self.map.grid, npc.1.to_owned(), point.to_owned());
 
                 if path.is_none() {

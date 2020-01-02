@@ -80,7 +80,7 @@ pub fn find_path(map: &Map, start: Point, goal: Point) -> Option<Vec<Point>> {
 
                 let prev_cost = dist.entry(edge.to_owned()).or_insert(usize::MAX);
 
-                if next_cost >= *prev_cost {
+                if next_cost > *prev_cost {
                     continue;
                 }
 

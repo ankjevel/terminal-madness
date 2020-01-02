@@ -104,12 +104,7 @@ impl Map {
             meta,
             npc,
             props: props.to_owned(),
-            direction: match player.2 {
-                0 => Direction::Up,
-                1 => Direction::Down,
-                2 => Direction::Right,
-                3 | _ => Direction::Left,
-            },
+            direction: Direction::from_u8(player.2),
         }
     }
 
