@@ -168,18 +168,18 @@ impl Game {
                                 Some(point) => (point.x, point.y, self.map.direction.to_u8()),
                                 None => new_map_meta.player,
                             };
-                            let map = Some(Map::parse_map(
+                            let map = Map::parse_map(
                                 &new_map_meta.grid,
                                 &new_map_meta.max,
                                 &player,
                                 &new_map_meta.props,
-                            ));
+                            );
                             let mut pathfinding = self.pathfinding.write().unwrap();
                             pathfinding.clear();
                             drop(pathfinding);
                             self.entries.insert(self.current_map, self.map.current);
                             self.current_map = meta.to_owned();
-                            self.map = map.unwrap();
+                            self.map = map;
                             self.new_path_for_npc();
                         }
                     }
@@ -207,7 +207,7 @@ impl Game {
 
     pub fn move_actor(&mut self, id: &u8, point: &Point) {
         let npc = self.map.npc.get_mut(id).unwrap();
-        let is_not_occupied = self.map.grid.get(point).unwrap() != &Tile::Current;
+        let is_not_occupied = self.map.grid.get(point).unwrap() == &Tile::Empty;
 
         if is_not_occupied {
             let tile = self.map.grid.get_mut(npc).unwrap();

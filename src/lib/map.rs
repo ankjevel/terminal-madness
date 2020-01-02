@@ -88,7 +88,7 @@ impl Map {
                 let parsed_tile = Tile::from_u8(tile);
                 *grid = parsed_tile.to_owned();
 
-                if parsed_tile == Tile::NPC {
+                if parsed_tile == Tile::NPC && tile_meta.1 == 0 {
                     npc.insert(tile_meta.0.to_owned(), point.to_owned());
                 }
 

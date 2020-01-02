@@ -53,7 +53,7 @@ impl PartialOrd for Point {
 }
 
 pub fn rand_range(input: &RangeInclusive<u8>) -> u8 {
-    rand::thread_rng().gen_range(input.start(), input.end())
+    rand::thread_rng().gen_range(input.start(), input.end() + 1)
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
@@ -107,6 +107,20 @@ impl Direction {
             1 => Direction::Down,
             2 => Direction::Right,
             3 | _ => Direction::Left,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_should_render_expected_random_numbers() {
+        let range = 0..=10;
+        for _ in 0..1000 {
+            let rand = rand_range(&range);
+            assert!(range.contains(&rand));
         }
     }
 }
