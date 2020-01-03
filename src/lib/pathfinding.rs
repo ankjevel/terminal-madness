@@ -1,13 +1,29 @@
 use crate::lib::shared::{Point, Tile};
 use std::{
+    cmp::Ordering,
     collections::{BinaryHeap, HashMap},
     usize,
 };
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 struct State {
     cost: usize,
     point: Point,
+}
+
+impl Ord for State {
+    fn cmp(&self, other: &State) -> Ordering {
+        other
+            .cost
+            .cmp(&self.cost)
+            .then_with(|| self.point.cmp(&other.point))
+    }
+}
+
+impl PartialOrd for State {
+    fn partial_cmp(&self, other: &State) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 type Map = HashMap<Point, Tile>;
@@ -44,7 +60,7 @@ pub fn adjacent(map: &Map, point: &Point) -> Vec<Point> {
     tiles
 }
 
-pub fn find_path(map: &Map, start: Point, goal: Point) -> Option<Vec<Point>> {
+pub fn find_path(map: &Map, start: Point, goal: Point) -> Vec<Point> {
     let can_move = |point: &Point| -> bool {
         match map.get(&point) {
             Some(tile) => tile == &Tile::Empty,
@@ -70,7 +86,9 @@ pub fn find_path(map: &Map, start: Point, goal: Point) -> Option<Vec<Point>> {
             break;
         }
 
-        if cost > *dist.entry(point.to_owned()).or_insert(usize::MAX) {
+        let to_point = dist.entry(point.to_owned()).or_insert(usize::MAX);
+
+        if cost > *to_point {
             continue;
         }
 
@@ -99,22 +117,52 @@ pub fn find_path(map: &Map, start: Point, goal: Point) -> Option<Vec<Point>> {
     let mut path = vec![current];
     while current != start {
         match came_from.get(&current) {
-            Some(c) => match *c {
-                Some(c) => {
-                    current = c;
-
-                    if current == start {
-                        continue;
-                    }
-
-                    path.push(current);
+            Some(c) => {
+                if c.is_none() {
+                    return vec![];
                 }
-                _ => {
-                    return None;
+
+                current = c.unwrap();
+
+                if current == start {
+                    continue;
                 }
-            },
-            _ => return None,
+
+                path.push(current);
+            }
+            _ => return vec![],
         }
     }
-    Some(path)
+
+    path
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    lazy_static! {
+        static ref MAP: Map = {
+            let mut map = HashMap::new();
+            for y in 0..5 {
+                for x in 0..5 {
+                    map.insert(Point { x, y }, Tile::Empty);
+                }
+            }
+            map
+        };
+    }
+
+    #[test]
+    fn should_find_best_route_between_points() {
+        let start = Point { x: 1, y: 1 };
+        let end = Point { x: 4, y: 4 };
+
+        let expected_path = vec![(4, 4), (3, 4), (3, 3), (2, 3), (2, 2), (1, 2)]
+            .into_iter()
+            .map(|(x, y)| Point { x, y })
+            .collect::<Vec<_>>();
+
+        assert_eq!(find_path(&MAP, start, end), expected_path);
+    }
 }

@@ -2,6 +2,7 @@ use rand::Rng;
 use std::{
     cmp::Ordering::{self, Equal, Greater, Less},
     collections::HashMap,
+    mem,
     ops::RangeInclusive,
 };
 
@@ -53,7 +54,14 @@ impl PartialOrd for Point {
 }
 
 pub fn rand_range(input: &RangeInclusive<u8>) -> u8 {
-    rand::thread_rng().gen_range(input.start(), input.end() + 1)
+    let mut a = input.start();
+    let mut b = input.end();
+
+    if a > b {
+        mem::swap(&mut a, &mut b);
+    }
+
+    rand::thread_rng().gen_range(a, b + 1)
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]

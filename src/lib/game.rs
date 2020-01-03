@@ -101,11 +101,9 @@ impl Game {
                 let point = self.gen_point(&meta, 0);
                 let path = find_path(&self.map.grid, npc.1.to_owned(), point.to_owned());
 
-                if path.is_none() {
+                if path.is_empty() {
                     continue;
                 }
-
-                let path = path.unwrap();
 
                 pathfinding.insert(*npc.0, path.to_owned());
             }
@@ -174,9 +172,11 @@ impl Game {
                                 &player,
                                 &new_map_meta.props,
                             );
+
                             let mut pathfinding = self.pathfinding.write().unwrap();
                             pathfinding.clear();
                             drop(pathfinding);
+
                             self.entries.insert(self.current_map, self.map.current);
                             self.current_map = meta.to_owned();
                             self.map = map;
@@ -205,7 +205,7 @@ impl Game {
         }
     }
 
-    pub fn move_actor(&mut self, id: &u8, point: &Point) {
+    pub fn move_npc(&mut self, id: &u8, point: &Point) {
         let npc = self.map.npc.get_mut(id).unwrap();
         let is_not_occupied = self.map.grid.get(point).unwrap() == &Tile::Empty;
 

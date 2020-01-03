@@ -5,11 +5,13 @@ extern crate rand;
 mod lib;
 
 use lib::{game::Game, helper::parse_maps};
+use rand::Rng;
 use std::{
+    cmp::max,
     io::{stdout, Read},
     sync::{Arc, Mutex},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use termion::{async_stdin, clear, cursor, raw::IntoRawMode};
 
@@ -25,6 +27,7 @@ fn main() {
     let in_thread = game.clone();
 
     thread::spawn(move || loop {
+        let start = Instant::now();
         let mut movement = Vec::new();
         if let Ok(guard) = pathfinding.write() {
             let mut guard = guard;
@@ -46,24 +49,31 @@ fn main() {
 
         for (id, point) in movement {
             let mut game = in_thread.lock().unwrap();
-            game.move_actor(&id, &point);
+            let range = rand::thread_rng().gen_range(0, 250);
+            thread::sleep(Duration::from_millis(range as u64));
+            game.move_npc(&id, &point);
         }
 
-        thread::sleep(Duration::from_millis(1200));
+        let duration = start.elapsed().as_millis();
+
+        let diff = max(2000 - duration, 0) as u64;
+
+        thread::sleep(Duration::from_millis(diff));
     });
 
     'stdin: loop {
+        let start = Instant::now();
         if let Some(Ok(val)) = stdin.next() {
             match val {
                 // arrow sequence = 27+91+(65-68)
                 27 => {
                     if let Some(Ok(val)) = stdin.next() {
                         if val == 91 {
-                            if let Ok(guard) = game.try_lock() {
+                            if let Ok(guard) = game.lock() {
                                 let mut this = guard;
                                 this.move_player(&stdin.next().unwrap_or(Ok(0)).unwrap_or(0));
-                                continue 'stdin;
                             }
+                            continue 'stdin;
                         }
                     }
                 }
@@ -78,11 +88,13 @@ fn main() {
                         this.interact()
                     }
                 }
-                _ => print!("{}\r\n", val),
+                _ => {}
             }
         }
 
-        thread::sleep(Duration::from_millis(100));
+        let duration = start.elapsed().as_millis();
+
+        thread::sleep(Duration::from_millis(max(50 - duration, 0) as u64));
     }
 
     println!("{}{}{}", clear::All, cursor::Show, cursor::Goto(1, 1));
