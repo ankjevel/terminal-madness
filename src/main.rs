@@ -4,27 +4,36 @@ extern crate rand;
 
 mod lib;
 
-use lib::{game::Game, helper::parse_maps};
+use lib::{game::Game, helper::parse_maps, shared::Point};
 use rand::Rng;
 use std::{
     cmp::max,
     io::{stdout, Read},
-    sync::{Arc, Mutex},
+    sync::{mpsc, Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
 use termion::{async_stdin, clear, cursor, raw::IntoRawMode};
 
+enum Message {
+    MoveNPC { id: u8, point: Point },
+    MovePlayer { key: u8 },
+    Interact,
+}
+
 fn main() {
+    let (tx, rx) = mpsc::channel();
+
     let maps = parse_maps(&include_str!("../lib/maps"));
     let game = Arc::new(Mutex::new(Game::new(maps)));
+
     let mut stdin = async_stdin().bytes();
     let _stdout = stdout().into_raw_mode().unwrap();
 
     game.lock().unwrap().map.print_grid();
 
     let pathfinding = game.lock().unwrap().pathfinding.clone();
-    let in_thread = game.clone();
+    let in_thread_tx = tx.clone();
 
     thread::spawn(move || loop {
         let start = Instant::now();
@@ -48,10 +57,14 @@ fn main() {
         };
 
         for (id, point) in movement {
-            let mut game = in_thread.lock().unwrap();
-            let range = rand::thread_rng().gen_range(0, 250);
+            let range = rand::thread_rng().gen_range(50, 250);
             thread::sleep(Duration::from_millis(range as u64));
-            game.move_npc(&id, &point);
+            in_thread_tx
+                .send(Message::MoveNPC {
+                    id: id.to_owned(),
+                    point: point.to_owned(),
+                })
+                .unwrap();
         }
 
         let duration = start.elapsed().as_millis();
@@ -61,6 +74,20 @@ fn main() {
         thread::sleep(Duration::from_millis(diff));
     });
 
+    thread::spawn(move || loop {
+        let msg = rx.recv().unwrap();
+        if let Ok(guard) = game.lock() {
+            let mut this = guard;
+            match msg {
+                Message::MoveNPC { id, point } => this.move_npc(&id, &point),
+                Message::MovePlayer { key } => this.move_player(&key),
+                Message::Interact => this.interact(),
+            }
+        }
+    });
+
+    let input_loop_tx = tx.clone();
+
     'stdin: loop {
         let start = Instant::now();
         if let Some(Ok(val)) = stdin.next() {
@@ -69,10 +96,12 @@ fn main() {
                 27 => {
                     if let Some(Ok(val)) = stdin.next() {
                         if val == 91 {
-                            if let Ok(guard) = game.lock() {
-                                let mut this = guard;
-                                this.move_player(&stdin.next().unwrap_or(Ok(0)).unwrap_or(0));
-                            }
+                            let key = &stdin.next().unwrap_or(Ok(0)).unwrap_or(0);
+                            input_loop_tx
+                                .send(Message::MovePlayer {
+                                    key: key.to_owned(),
+                                })
+                                .unwrap();
                             continue 'stdin;
                         }
                     }
@@ -83,10 +112,7 @@ fn main() {
                 13 => print!("enter\r\n"),
                 // space
                 32 => {
-                    if let Ok(guard) = game.try_lock() {
-                        let mut this = guard;
-                        this.interact()
-                    }
+                    input_loop_tx.send(Message::Interact).unwrap();
                 }
                 _ => {}
             }
@@ -94,7 +120,7 @@ fn main() {
 
         let duration = start.elapsed().as_millis();
 
-        thread::sleep(Duration::from_millis(max(50 - duration, 0) as u64));
+        thread::sleep(Duration::from_millis(max(100 - duration, 0) as u64));
     }
 
     println!("{}{}{}", clear::All, cursor::Show, cursor::Goto(1, 1));
