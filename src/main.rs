@@ -96,10 +96,9 @@ fn main() {
                 27 => {
                     if let Some(Ok(val)) = stdin.next() {
                         if val == 91 {
-                            let key = &stdin.next().unwrap_or(Ok(0)).unwrap_or(0);
                             input_loop_tx
                                 .send(Message::MovePlayer {
-                                    key: key.to_owned(),
+                                    key: stdin.next().unwrap_or(Ok(0)).unwrap_or(0),
                                 })
                                 .unwrap();
                             continue 'stdin;
@@ -111,9 +110,7 @@ fn main() {
                 // enter
                 13 => print!("enter\r\n"),
                 // space
-                32 => {
-                    input_loop_tx.send(Message::Interact).unwrap();
-                }
+                32 => input_loop_tx.send(Message::Interact).unwrap(),
                 _ => {}
             }
         }

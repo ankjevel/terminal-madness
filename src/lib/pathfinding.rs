@@ -63,7 +63,7 @@ pub fn adjacent(map: &Map, point: &Point) -> Vec<Point> {
 pub fn find_path(map: &Map, start: Point, goal: Point) -> Vec<Point> {
     let can_move = |point: &Point| -> bool {
         match map.get(&point) {
-            Some(tile) => tile == &Tile::Empty,
+            Some(tile) => tile != &Tile::Wall,
             None => false,
         }
     };
@@ -141,28 +141,101 @@ pub fn find_path(map: &Map, start: Point, goal: Point) -> Vec<Point> {
 mod tests {
     use super::*;
 
-    lazy_static! {
-        static ref MAP: Map = {
-            let mut map = HashMap::new();
-            for y in 0..5 {
-                for x in 0..5 {
-                    map.insert(Point { x, y }, Tile::Empty);
-                }
-            }
-            map
-        };
+    fn parse_map(input: &String) -> HashMap<Point, Tile> {
+        input
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(str::to_owned)
+            .map(|line| line.chars().filter(|char| char != &'|').collect::<String>())
+            .enumerate()
+            .map(|(y, line)| {
+                line.chars()
+                    .enumerate()
+                    .map(|(x, char)| {
+                        (
+                            Point { x, y },
+                            match char {
+                                '█' => Tile::Wall,
+                                'C' => Tile::Current,
+                                'X' => Tile::NPC,
+                                _ => Tile::Empty,
+                            },
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .flatten()
+            .collect()
     }
 
     #[test]
-    fn should_find_best_route_between_points() {
+    ///
+    /// Using Dijkstras algoritm; the prop should find the shortest route
+    /// between `1,1` to `4,4`. There should be, _at the most_, 6 steps.
+    ///
+    ///     0,0 1,0 2,0 3,0 4,0
+    ///     0,1 1,1 2,1 3,1 4,1
+    ///     0,2 1,2 2,2 3,2 4,2
+    ///     0,3 1,3 2,3 3,3 4,3
+    ///     0,4 1,4 2,4 3,4 4,4
+    ///
+    fn it_should_find_best_route_between_points() {
+        let example = "
+            █     █
+            █ S   █
+            █     █
+            █     █
+            █    E█
+        ";
+
         let start = Point { x: 1, y: 1 };
         let end = Point { x: 4, y: 4 };
 
-        let expected_path = vec![(4, 4), (3, 4), (3, 3), (2, 3), (2, 2), (1, 2)]
-            .into_iter()
-            .map(|(x, y)| Point { x, y })
-            .collect::<Vec<_>>();
+        assert_eq!(
+            find_path(&parse_map(&example.to_string()), start, end).len(),
+            6
+        );
+    }
 
-        assert_eq!(find_path(&MAP, start, end), expected_path);
+    #[test]
+    fn it_should_go_around_walls() {
+        let example = "
+            █    ███
+            █S █   █
+            █  ███ █
+            █ █E   █
+            █  █████
+        ";
+
+        let start = Point { x: 0, y: 1 };
+        let end = Point { x: 2, y: 3 };
+
+        assert_eq!(
+            find_path(&parse_map(&example.to_string()), start, end).len(),
+            12
+        );
+    }
+
+    #[test]
+    /// ignore characters, and other npcs, since they can move before the prop
+    /// gets to the target
+    fn it_ignores_character_and_other_npc_when_finding_route() {
+        let example = "
+            ████████
+            █  XX  █
+            █S C E █
+            █  XX  █
+            █  ██  █
+            ████████
+        ";
+
+        let start = Point { x: 0, y: 1 };
+        let end = Point { x: 4, y: 1 };
+
+        assert_eq!(
+            find_path(&parse_map(&example.to_string()), start, end).len(),
+            4
+        );
     }
 }
