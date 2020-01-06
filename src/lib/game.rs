@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone)]
 struct MapMeta {
     grid: HashMap<Point, (u8, (u8, u8))>,
     max: (usize, usize),
@@ -20,7 +20,7 @@ struct MapMeta {
 type Range = (RangeInclusive<u8>, RangeInclusive<u8>);
 
 #[allow(dead_code)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Game {
     current_map: (u8, u8),
     dialogue: Option<u8>,
@@ -28,7 +28,7 @@ pub struct Game {
     pub map: Map,
     maps: HashMap<(u8, u8), MapMeta>,
     splash: Option<u8>,
-    pub pathfinding: Arc<RwLock<HashMap<u8, Vec<Point>>>>,
+    pub pathfinding: Arc<RwLock<HashMap<(u8, u8, u8), Vec<Point>>>>,
 }
 
 impl Game {
@@ -91,7 +91,8 @@ impl Game {
     pub fn new_path_for_npc(&mut self) {
         let mut pathfinding = self.pathfinding.write().unwrap();
         for npc in &self.map.npc {
-            if let Some(val) = pathfinding.get(npc.0) {
+            let key = (npc.0.to_owned(), self.current_map.0, self.current_map.1);
+            if let Some(val) = pathfinding.get(&key) {
                 if !val.is_empty() {
                     continue;
                 }
@@ -105,7 +106,7 @@ impl Game {
                     continue;
                 }
 
-                pathfinding.insert(*npc.0, path.to_owned());
+                pathfinding.insert(key, path.to_owned());
             }
         }
     }
@@ -205,45 +206,52 @@ impl Game {
         }
     }
 
-    pub fn move_npc(&mut self, id: &u8, point: &Point) {
-        let npc = self.map.npc.get_mut(id).unwrap();
-        let is_not_occupied = self.map.grid.get(point).unwrap() == &Tile::Empty;
-
-        if is_not_occupied {
-            let tile = self.map.grid.get_mut(npc).unwrap();
-            *tile = Tile::Empty;
-            let tile = self.map.grid.get_mut(point).unwrap();
-            *tile = Tile::NPC;
-            *npc = point.to_owned();
-            self.map.print_grid();
-
-            let mut calculate_new = false;
-
-            if let Ok(pathfinding) = self.pathfinding.read() {
-                if let Some(npc) = pathfinding.get(id) {
-                    if npc.len() == 0 {
-                        calculate_new = true;
-                    }
-                }
-            }
-
-            if calculate_new {
-                self.new_path_for_npc();
-            }
-
+    pub fn move_npc(&mut self, meta: &(u8, u8, u8), point: &Point) {
+        if self.current_map != (meta.1, meta.2) {
             return;
         }
 
-        drop(npc);
-        drop(is_not_occupied);
+        if let Some(npc) = self.map.npc.get_mut(&meta.0) {
+            let is_not_occupied = self.map.grid.get(point).unwrap() == &Tile::Empty;
 
-        if let Ok(guard) = self.pathfinding.write() {
-            let mut pathfinding = guard;
-            if let Some(npc) = pathfinding.get_mut(id) {
-                npc.clear()
+            let key = meta.to_owned();
+
+            if is_not_occupied {
+                let tile = self.map.grid.get_mut(npc).unwrap();
+                *tile = Tile::Empty;
+                let tile = self.map.grid.get_mut(point).unwrap();
+                *tile = Tile::NPC;
+                *npc = point.to_owned();
+                self.map.print_grid();
+
+                let mut calculate_new = false;
+
+                if let Ok(pathfinding) = self.pathfinding.read() {
+                    if let Some(npc) = pathfinding.get(&key) {
+                        if npc.len() == 0 {
+                            calculate_new = true;
+                        }
+                    }
+                }
+
+                if calculate_new {
+                    self.new_path_for_npc();
+                }
+
+                return;
             }
-        }
 
-        self.new_path_for_npc();
+            drop(npc);
+            drop(is_not_occupied);
+
+            if let Ok(guard) = self.pathfinding.write() {
+                let mut pathfinding = guard;
+                if let Some(npc) = pathfinding.get_mut(&key) {
+                    npc.clear()
+                }
+            }
+
+            self.new_path_for_npc();
+        }
     }
 }

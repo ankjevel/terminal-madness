@@ -16,7 +16,7 @@ use std::{
 use termion::{async_stdin, clear, cursor, raw::IntoRawMode};
 
 enum Message {
-    MoveNPC { id: u8, point: Point },
+    MoveNPC { meta: (u8, u8, u8), point: Point },
     MovePlayer { key: u8 },
     Interact,
 }
@@ -40,28 +40,29 @@ fn main() {
         let mut movement = Vec::new();
         if let Ok(guard) = pathfinding.write() {
             let mut guard = guard;
-            for path in guard.iter_mut() {
-                if path.1.is_empty() {
+            for (meta, points) in guard.iter_mut() {
+                if points.is_empty() {
                     continue;
                 }
 
-                let point = path.1.pop();
+                let point = points.pop();
 
                 if point.is_none() {
                     continue;
                 }
 
                 let point = point.unwrap();
-                movement.push((path.0.to_owned(), point.to_owned()));
+                movement.push((meta.to_owned(), point.to_owned()));
             }
         };
 
-        for (id, point) in movement {
+        for (meta, point) in movement {
             let range = rand::thread_rng().gen_range(50, 250);
             thread::sleep(Duration::from_millis(range as u64));
+
             in_thread_tx
                 .send(Message::MoveNPC {
-                    id: id.to_owned(),
+                    meta: meta.to_owned(),
                     point: point.to_owned(),
                 })
                 .unwrap();
@@ -69,17 +70,17 @@ fn main() {
 
         let duration = start.elapsed().as_millis();
 
-        let diff = max(2000 - duration, 0) as u64;
+        let diff = if duration < 1000 { 1000 - duration } else { 0 };
 
-        thread::sleep(Duration::from_millis(diff));
+        thread::sleep(Duration::from_millis(diff as u64));
     });
 
     thread::spawn(move || loop {
         let msg = rx.recv().unwrap();
-        if let Ok(guard) = game.lock() {
+        if let Ok(guard) = game.try_lock() {
             let mut this = guard;
             match msg {
-                Message::MoveNPC { id, point } => this.move_npc(&id, &point),
+                Message::MoveNPC { meta, point } => this.move_npc(&meta, &point),
                 Message::MovePlayer { key } => this.move_player(&key),
                 Message::Interact => this.interact(),
             }

@@ -5,7 +5,7 @@ use std::{
     usize,
 };
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+#[derive(Eq, PartialEq)]
 struct State {
     cost: usize,
     point: Point,
